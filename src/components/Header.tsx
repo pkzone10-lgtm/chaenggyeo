@@ -8,12 +8,20 @@ export default function Header() {
           <span className="text-2xl">🧡</span>
           <span className="text-xl font-bold text-gray-900">챙겨드림</span>
         </div>
-        <a
-          href="#pricing"
-          className="bg-[#FF6B35] hover:bg-[#e55a2b] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
-        >
-          구독하기
-        </a>
+        <div className="flex items-center gap-3">
+          <a
+            href="/mypage"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            마이페이지
+          </a>
+          <a
+            href="#pricing"
+            className="bg-[#FF6B35] hover:bg-[#e55a2b] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
+          >
+            구독하기
+          </a>
+        </div>
       </div>
     </header>
   );

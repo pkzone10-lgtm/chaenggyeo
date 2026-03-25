@@ -1,0 +1,20 @@
+// 기상청 단기예보 격자 X, Y 좌표 (전국 17개 시도)
+export const WEATHER_GRID: Record<string, { nx: number; ny: number; name: string }> = {
+  seoul:    { nx: 60,  ny: 127, name: "서울특별시" },
+  busan:    { nx: 98,  ny: 76,  name: "부산광역시" },
+  daegu:    { nx: 89,  ny: 90,  name: "대구광역시" },
+  incheon:  { nx: 55,  ny: 124, name: "인천광역시" },
+  gwangju:  { nx: 58,  ny: 74,  name: "광주광역시" },
+  daejeon:  { nx: 67,  ny: 100, name: "대전광역시" },
+  ulsan:    { nx: 102, ny: 84,  name: "울산광역시" },
+  sejong:   { nx: 66,  ny: 103, name: "세종특별자치시" },
+  gyeonggi: { nx: 60,  ny: 120, name: "경기도" },
+  gangwon:  { nx: 73,  ny: 134, name: "강원특별자치도" },
+  chungbuk: { nx: 69,  ny: 107, name: "충청북도" },
+  chungnam: { nx: 68,  ny: 100, name: "충청남도" },
+  jeonbuk:  { nx: 63,  ny: 89,  name: "전북특별자치도" },
+  jeonnam:  { nx: 51,  ny: 67,  name: "전라남도" },
+  gyeongbuk:{ nx: 89,  ny: 91,  name: "경상북도" },
+  gyeongnam:{ nx: 91,  ny: 77,  name: "경상남도" },
+  jeju:     { nx: 52,  ny: 38,  name: "제주특별자치도" },
+};
