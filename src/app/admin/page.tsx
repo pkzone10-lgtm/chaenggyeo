@@ -57,7 +57,7 @@ export default function AdminPage() {
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"dashboard" | "users" | "logs" | "benefits" | "send">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "users" | "logs" | "benefits" | "manual" | "send">("dashboard");
 
   // Dashboard
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -76,6 +76,15 @@ export default function AdminPage() {
   const [benefitsSaved, setBenefitsSaved] = useState(false);
   const [lastCrawledAt, setLastCrawledAt] = useState("");
   const [crawlSource, setCrawlSource] = useState("");
+
+  // Manual benefits
+  const [manualRegion, setManualRegion] = useState("national");
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualContent, setManualContent] = useState("");
+  const [manualSource, setManualSource] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
+  const [benefitsList, setBenefitsList] = useState<{ id: string; type: string; content: string; created_at: string }[]>([]);
+  const [listFilter, setListFilter] = useState("all");
 
   // Send
   const [sendUserId, setSendUserId] = useState("");
@@ -140,6 +149,7 @@ export default function AdminPage() {
     if (tab === "users") loadUsers(1);
     if (tab === "logs") loadLogs();
     if (tab === "send") loadUsers(1);
+    if (tab === "manual") loadBenefitsList("all");
   }, [token, tab, loadDashboard, loadUsers, loadLogs]);
 
   // 혜택 RSS 수집
@@ -175,6 +185,55 @@ export default function AdminPage() {
       const data = await res.json();
       setBenefitsSaved(true);
       showToast(`${data.saved}개 혜택이 저장됐습니다`);
+    }
+  }
+
+  // 혜택 직접 입력
+  async function handleManualSave() {
+    if (!manualTitle.trim() || !manualContent.trim()) {
+      showToast("제목과 내용을 입력해주세요");
+      return;
+    }
+    setManualSaving(true);
+    const res = await fetch("/api/admin/benefits-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        regionCode: manualRegion,
+        title: manualTitle,
+        content: manualContent,
+        source: manualSource,
+      }),
+    });
+    if (res.ok) {
+      showToast("혜택이 저장됐습니다");
+      setManualTitle("");
+      setManualContent("");
+      setManualSource("");
+      loadBenefitsList(listFilter);
+    }
+    setManualSaving(false);
+  }
+
+  // 혜택 목록 로드
+  async function loadBenefitsList(region: string) {
+    setListFilter(region);
+    const res = await fetch(`/api/admin/benefits-list?region=${region}`);
+    const data = await res.json();
+    setBenefitsList(data.benefits || []);
+  }
+
+  // 혜택 삭제
+  async function handleDeleteBenefit(id: string) {
+    if (!confirm("이 혜택을 삭제하시겠습니까?")) return;
+    const res = await fetch("/api/admin/benefits-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      showToast("삭제됐습니다");
+      loadBenefitsList(listFilter);
     }
   }
 
@@ -240,6 +299,7 @@ export default function AdminPage() {
     { key: "users", label: "구독자" },
     { key: "logs", label: "발송 로그" },
     { key: "benefits", label: "혜택 검토" },
+    { key: "manual", label: "혜택 입력" },
     { key: "send", label: "수동 발송" },
   ] as const;
 
@@ -514,6 +574,119 @@ export default function AdminPage() {
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {/* 혜택 직접 입력 */}
+        {tab === "manual" && (
+          <div className="space-y-6">
+            {/* 입력 폼 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">혜택 직접 입력</h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">지역</label>
+                  <select
+                    value={manualRegion}
+                    onChange={(e) => setManualRegion(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-sm text-gray-900 bg-white"
+                  >
+                    <option value="national">🇰🇷 전국 공통</option>
+                    {Object.entries(REGION_NAMES).map(([code, name]) => (
+                      <option key={code} value={code}>📍 {name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">혜택 제목</label>
+                  <input
+                    type="text"
+                    value={manualTitle}
+                    onChange={(e) => setManualTitle(e.target.value)}
+                    placeholder="예: 기초연금 인상 안내"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-sm text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">혜택 내용 (2~3문장)</label>
+                  <textarea
+                    value={manualContent}
+                    onChange={(e) => setManualContent(e.target.value)}
+                    placeholder="예: 만 65세 이상 어르신은 가까운 주민센터에서 신청하실 수 있습니다."
+                    rows={3}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-sm text-gray-900 resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">출처 (선택)</label>
+                  <input
+                    type="text"
+                    value={manualSource}
+                    onChange={(e) => setManualSource(e.target.value)}
+                    placeholder="예: 보건복지부"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-sm text-gray-900"
+                  />
+                </div>
+                <button
+                  onClick={handleManualSave}
+                  disabled={manualSaving}
+                  className="w-full bg-[#FF6B35] hover:bg-[#e55a2b] disabled:bg-gray-300 text-white font-semibold py-3 rounded-full transition-colors"
+                >
+                  {manualSaving ? "저장 중..." : "저장"}
+                </button>
+              </div>
+            </div>
+
+            {/* 혜택 목록 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">등록된 혜택</h2>
+                <select
+                  value={listFilter}
+                  onChange={(e) => loadBenefitsList(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-700 bg-white"
+                >
+                  <option value="all">전체</option>
+                  <option value="national">🇰🇷 전국</option>
+                  {Object.entries(REGION_NAMES).map(([code, name]) => (
+                    <option key={code} value={code}>📍 {name}</option>
+                  ))}
+                </select>
+              </div>
+              {benefitsList.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">등록된 혜택이 없습니다</p>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {benefitsList.map((b) => (
+                    <div key={b.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                            b.type === "national_benefit"
+                              ? "bg-gray-900 text-white"
+                              : "bg-green-700 text-white"
+                          }`}>
+                            {b.type === "national_benefit"
+                              ? "전국"
+                              : REGION_NAMES[b.type.replace("local_benefit_", "")] || b.type}
+                          </span>
+                          <span className="text-[11px] text-gray-400">
+                            {new Date(b.created_at).toLocaleDateString("ko-KR")}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 truncate">{b.content}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteBenefit(b.id)}
+                        className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0 mt-1"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
