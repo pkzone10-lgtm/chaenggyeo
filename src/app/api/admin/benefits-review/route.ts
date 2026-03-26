@@ -1,36 +1,67 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { crawlBenefits } from "@/lib/rssCrawler";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET() {
   try {
-    const now = new Date();
-    const month = now.getMonth() + 1;
+    // 1차: RSS 크롤링
+    const crawled = await crawlBenefits();
 
-    const res = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1500,
-      messages: [
-        {
-          role: "user",
-          content: `${month}월에 65세 이상 어르신에게 알려드릴 전국 공통 복지 혜택 5개와 부산 지역 혜택 5개를 알려주세요.
+    if (crawled.length > 0) {
+      return NextResponse.json({
+        candidates: crawled,
+        crawledAt: crawled[0].crawledAt,
+        source: "rss",
+      });
+    }
 
-규칙:
-1. 실제로 존재하는 제도/혜택만 (기초연금, 건강검진, 교통, 문화, 의료 등)
-2. 각 항목은 "혜택명 — 설명 1문장" 형식
-3. JSON 배열로 출력: [{"type":"national","content":"..."},{"type":"local_busan","content":"..."}]
-4. JSON만 출력, 다른 텍스트 없이`,
-        },
-      ],
+    // 2차: RSS 실패 시 백업 DB에서 최근 데이터 조회
+    const { data: backupNational } = await supabaseAdmin
+      .from("contents")
+      .select("content, created_at")
+      .eq("type", "national_benefit")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    const { data: backupLocal } = await supabaseAdmin
+      .from("contents")
+      .select("content, created_at")
+      .eq("type", "local_benefit_busan")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    const fallback = [
+      ...(backupNational || []).map((b) => ({
+        title: b.content.split(" — ")[0] || b.content,
+        description: b.content,
+        summary: b.content,
+        source: "백업DB",
+        sourceDate: b.created_at,
+        crawledAt: new Date().toISOString(),
+        link: "",
+        type: "national" as const,
+      })),
+      ...(backupLocal || []).map((b) => ({
+        title: b.content.split(" — ")[0] || b.content,
+        description: b.content,
+        summary: b.content,
+        source: "백업DB",
+        sourceDate: b.created_at,
+        crawledAt: new Date().toISOString(),
+        link: "",
+        type: "local_busan" as const,
+      })),
+    ];
+
+    return NextResponse.json({
+      candidates: fallback,
+      crawledAt: new Date().toISOString(),
+      source: "backup",
     });
-
-    const text = res.content[0].type === "text" ? res.content[0].text : "[]";
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    const candidates = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-
-    return NextResponse.json({ candidates });
   } catch {
-    return NextResponse.json({ candidates: [], error: "AI 생성 실패" });
+    return NextResponse.json(
+      { candidates: [], error: "수집 실패" },
+      { status: 500 }
+    );
   }
 }

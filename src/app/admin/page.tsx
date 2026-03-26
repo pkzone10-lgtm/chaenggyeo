@@ -35,7 +35,13 @@ interface LogRow {
 
 interface BenefitCandidate {
   type: string;
-  content: string;
+  regionCode: string | null;
+  title: string;
+  summary: string;
+  source: string;
+  sourceDate: string;
+  crawledAt: string;
+  link: string;
   checked: boolean;
 }
 
@@ -68,6 +74,8 @@ export default function AdminPage() {
   const [candidates, setCandidates] = useState<BenefitCandidate[]>([]);
   const [benefitsLoading, setBenefitsLoading] = useState(false);
   const [benefitsSaved, setBenefitsSaved] = useState(false);
+  const [lastCrawledAt, setLastCrawledAt] = useState("");
+  const [crawlSource, setCrawlSource] = useState("");
 
   // Send
   const [sendUserId, setSendUserId] = useState("");
@@ -134,18 +142,20 @@ export default function AdminPage() {
     if (tab === "send") loadUsers(1);
   }, [token, tab, loadDashboard, loadUsers, loadLogs]);
 
-  // 혜택 AI 생성
+  // 혜택 RSS 수집
   async function generateBenefits() {
     setBenefitsLoading(true);
     setBenefitsSaved(false);
     const res = await fetch("/api/admin/benefits-review");
     const data = await res.json();
     setCandidates(
-      (data.candidates || []).map((c: { type: string; content: string }) => ({
+      (data.candidates || []).map((c: BenefitCandidate) => ({
         ...c,
         checked: true,
       }))
     );
+    setLastCrawledAt(data.crawledAt || "");
+    setCrawlSource(data.source === "backup" ? "백업DB" : "RSS 실시간");
     setBenefitsLoading(false);
   }
 
@@ -413,14 +423,21 @@ export default function AdminPage() {
         {/* 혜택 검토 */}
         {tab === "benefits" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">혜택 검토</h2>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">혜택 검토</h2>
+                {lastCrawledAt && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    마지막 수집: {new Date(lastCrawledAt).toLocaleString("ko-KR")} · {crawlSource}
+                  </p>
+                )}
+              </div>
               <button
                 onClick={generateBenefits}
                 disabled={benefitsLoading}
                 className="bg-[#FF6B35] hover:bg-[#e55a2b] disabled:bg-gray-300 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
               >
-                {benefitsLoading ? "생성 중..." : "AI 혜택 후보 생성"}
+                {benefitsLoading ? "수집 중..." : "최신 혜택 수집"}
               </button>
             </div>
 
@@ -451,18 +468,39 @@ export default function AdminPage() {
                         {c.checked && "✓"}
                       </button>
                       <div className="flex-1">
-                        <span
-                          className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                            c.type === "national"
-                              ? "bg-gray-900 text-white"
-                              : "bg-green-700 text-white"
-                          }`}
-                        >
-                          {c.type === "national" ? "전국" : "부산"}
-                        </span>
-                        <p className="text-sm text-gray-800 mt-2 leading-relaxed">
-                          {c.content}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              c.type === "national"
+                                ? "bg-gray-900 text-white"
+                                : "bg-green-700 text-white"
+                            }`}
+                          >
+                            {c.type === "national"
+                              ? "🇰🇷 전국"
+                              : `📍 ${REGION_NAMES[c.regionCode || ""] || c.regionCode}`}
+                          </span>
+                          <span className="text-[11px] text-gray-400">
+                            출처: {c.source}
+                            {c.sourceDate && ` · ${c.sourceDate.substring(0, 10)}`}
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900 mt-2">
+                          {c.title}
                         </p>
+                        <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                          {c.summary}
+                        </p>
+                        {c.link && (
+                          <a
+                            href={c.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-500 mt-1 inline-block hover:underline"
+                          >
+                            원문 보기 →
+                          </a>
+                        )}
                       </div>
                     </div>
                   ))}
