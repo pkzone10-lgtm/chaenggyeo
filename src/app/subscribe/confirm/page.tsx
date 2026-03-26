@@ -66,10 +66,16 @@ export default function ConfirmPage() {
         </div>
 
         <a
-          href="/"
-          className="mt-8 inline-block w-full bg-[#FF6B35] hover:bg-[#e55a2b] text-white font-semibold py-3.5 rounded-full transition-colors"
+          href="/subscribe/payment"
+          className="mt-6 inline-block w-full bg-[#FF6B35] hover:bg-[#e55a2b] text-white font-semibold py-3.5 rounded-full transition-colors"
         >
-          홈으로 돌아가기
+          유료 결제하기
+        </a>
+        <a
+          href="/"
+          className="mt-3 inline-block w-full border-2 border-gray-200 text-gray-600 font-semibold py-3.5 rounded-full hover:bg-gray-50 transition-colors"
+        >
+          먼저 무료체험 해볼게요
         </a>
       </div>
     </div>
